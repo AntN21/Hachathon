@@ -1,6 +1,8 @@
+#%%
 import json
+
 import pandas as pd
-df = pd.read_json("json-testing2.json", orient='index')
+df = pd.read_json("Batch2__BioSAV_BIofiltration_18mois_05frame3049.jpg.json", orient='index')
 
 object_list = df.values[3][0]
 
@@ -168,18 +170,19 @@ def object_detection_api(
     img = cv2.imread(img_path)  # Read image with cv2
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
     for i in range(len(boxes)):
-        cv2.rectangle(
-            img, boxes[i][0], boxes[i][1], color=(0, 255, 0), thickness=rect_th
-        )  # Draw Rectangle with the coordinates
-        cv2.putText(
-            img,
-            pred_cls[i],
-            boxes[i][0],
-            cv2.FONT_HERSHEY_SIMPLEX,
-            text_size,
-            (0, 255, 0),
-            thickness=text_th,
-        )  # Write the prediction class
+        if pred_cls[i] == "person":
+            cv2.rectangle(
+                img, boxes[i][0], boxes[i][1], color=(0, 255, 0), thickness=rect_th
+                )   # Draw Rectangle with the coordinates
+            cv2.putText(
+                img,
+                pred_cls[i],
+                boxes[i][0],
+                cv2.FONT_HERSHEY_SIMPLEX,
+                text_size,
+                (0, 255, 0),
+                thickness=text_th,
+                )  # Write the prediction class
     plt.figure(figsize=(20, 30))  # display the output image
     plt.imshow(img)
     plt.xticks([])
@@ -190,13 +193,13 @@ def object_detection_api(
 # %%
 # Try the detection model for the image of your choice
 # Example to help, if I have a folder named data with a jpeg format picture called test, the result would be:
-object_detection_api("2019-10-17-14-30-46.jpg")
+object_detection_api("Batch2__BioSAV_BIofiltration_18mois_05frame3049.jpg")
 
 
 # %%
 
 def afficher_boxes_json(
-    img_path, boxes, threshold=0.5, rect_th=3, text_size=3, text_th=3
+    img_path, boxes, rect_th=3, text_size=3, text_th=3
 ):
     img = cv2.imread(img_path)  # Read image with cv2
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
@@ -212,6 +215,7 @@ def afficher_boxes_json(
 
 
 # %% https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
+
 
 def get_model_instance_segmentation(num_classes):
     # load an instance segmentation model pre-trained on COCO
@@ -297,3 +301,32 @@ class PennFudanDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.imgs)
+
+#def critere
+
+
+def prop_people_detected(
+        img_path, threshold=0.5
+        ):
+    
+    boxes_person = []
+    
+    # On recupere la liste des personnes identifiees par l'algo
+    boxes, pred_cls = get_prediction(img_path, threshold)
+    
+    for i in range(len(boxes)):
+        if pred_cls[i] == "person":
+            boxes_person.append(boxes[i])
+    
+    
+    # On recupere la liste des personnes reelles
+    df = pd.read_json(img_path+".json", orient='index')
+    object_list = df.values[3][0]
+    real_boxes_list = []
+    
+    for item in object_list:
+        if item['classTitle'] == 'People':
+            real_boxes_list.append(item['points']['exterior'])
+            # real_boxes_list contient donc tous les rectangles voulus
+    
+
