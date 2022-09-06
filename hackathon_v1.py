@@ -1,3 +1,14 @@
+import pandas as pd
+df = pd.read_json("json-testing2.json", orient='index')
+
+object_list = df.values[3][0]
+
+boxes_list = []
+
+for item in object_list:
+    if item['classTitle'] == 'People':
+        boxes_list.append(item['points']['exterior'])
+
 # %%
 from PIL import Image
 from torchvision import models
