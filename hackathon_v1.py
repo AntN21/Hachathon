@@ -168,3 +168,22 @@ object_detection_api("2019-10-17-14-30-46.jpg")
 
 
 # %%
+
+def afficher_boxes_json(
+    img_path, boxes, threshold=0.5, rect_th=3, text_size=3, text_th=3
+):
+    img = cv2.imread(img_path)  # Read image with cv2
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
+    for i in range(len(boxes)):
+        cv2.rectangle(
+            img, boxes[i][0], boxes[i][1], color=(0, 255, 0), thickness=rect_th
+        )  # Draw Rectangle with the coordinates
+    plt.figure(figsize=(20, 30))  # display the output image
+    plt.imshow(img)
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+
+# %%
+
