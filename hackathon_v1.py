@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 df = pd.read_json("json-testing2.json", orient='index')
 
@@ -8,11 +9,25 @@ boxes_list = []
 for item in object_list:
     if item['classTitle'] == 'People':
         boxes_list.append(item['points']['exterior'])
+        
+def get_boxes(json_file):
+    df = pd.read_json(json_file, orient='index')
+
+    object_list = df.values[3][0]
+
+    box_list = []
+
+    for item in object_list:
+        if item['classTitle'] == 'People':
+            box_list.append(item['points']['exterior'])
+    return box_list
 
 # %%
 from PIL import Image
 from torchvision import models
 from torchvision import transforms as T
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+
 import matplotlib.pyplot as plt
 import cv2
 
@@ -196,5 +211,89 @@ def afficher_boxes_json(
     plt.show()
 
 
-# %%
+# %% https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 
+def get_model_instance_segmentation(num_classes):
+    # load an instance segmentation model pre-trained on COCO
+    model = models.detection.maskrcnn_resnet50_fpn(weights="DEFAULT")
+
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model
+
+def get_transform(train):
+    transforms = []
+    transforms.append(T.PILToTensor())
+    transforms.append(T.ConvertImageDtype(torch.float))
+    if train:
+        transforms.append(T.RandomHorizontalFlip(0.5))
+    return T.Compose(transforms)
+
+def bb_intersection_over_union(boxA, boxB):
+	# determine the (x, y)-coordinates of the intersection rectangle
+	xA = max(boxA[0], boxB[0])
+	yA = max(boxA[1], boxB[1])
+	xB = min(boxA[2], boxB[2])
+	yB = min(boxA[3], boxB[3])
+	# compute the area of intersection rectangle
+	interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+	# compute the area of both the prediction and ground-truth
+	# rectangles
+	boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+	boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+	# compute the intersection over union by taking the intersection
+	# area and dividing it by the sum of prediction + ground-truth
+	# areas - the interesection area
+	iou = interArea / float(boxAArea + boxBArea - interArea)
+	# return the intersection over union value
+	return iou
+
+#%% Definition of the dataset ,marche pas pour l'instant
+import torch
+import os
+class PennFudanDataset(torch.utils.data.Dataset):
+    def __init__(self, root, transforms):
+        self.root = root
+        self.transforms = transforms
+        # load all image files, sorting them to
+        # ensure that they are aligned
+        self.imgs = list(sorted(os.listdir(os.path.join(root, "PNGImages"))))
+        self.jsons = list(sorted(os.listdir(os.path.join(root, "jsons"))))
+
+    def __getitem__(self, idx):
+        # load images and masks
+        img_path = os.path.join(self.root, "PNGImages", self.imgs[idx])
+        json_path = os.path.join(self.root, "PedMasks", self.masks[idx])
+        img = Image.open(img_path).convert("RGB")
+
+
+        boxes = get_boxes(json_path)
+
+
+        # convert everything into a torch.Tensor
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        # there is only one class
+        #labels = torch.ones((num_objs,), dtype=torch.int64)
+        #masks = torch.as_tensor(masks, dtype=torch.uint8)
+
+        image_id = torch.tensor([idx])
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        # suppose all instances are not crowd
+        iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
+
+        target = {}
+        target["boxes"] = boxes
+        target["image_id"] = image_id
+        target["area"] = area
+        target["iscrowd"] = iscrowd
+
+        if self.transforms is not None:
+            img, target = self.transforms(img, target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.imgs)
