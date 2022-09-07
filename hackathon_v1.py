@@ -2,15 +2,7 @@
 import json
 
 import pandas as pd
-df = pd.read_json("Batch2__BioSAV_BIofiltration_18mois_05frame3049.jpg.json", orient='index')
 
-object_list = df.values[3][0]
-
-boxes_list = []
-
-for item in object_list:
-    if item['classTitle'] == 'People':
-        boxes_list.append(item['points']['exterior'])
         
 #Return a list of boxes  in [x0,y0,x1,y1] format
 def get_boxes(json_file):
@@ -195,7 +187,7 @@ def object_detection_api(
 # %%
 # Try the detection model for the image of your choice
 # Example to help, if I have a folder named data with a jpeg format picture called test, the result would be:
-object_detection_api("Batch2__BioSAV_BIofiltration_18mois_05frame3049.jpg")
+#object_detection_api("Batch2__BioSAV_BIofiltration_18mois_05frame3049.jpg")
 
 
 # %%
@@ -294,21 +286,18 @@ class WorksiteDataset(torch.utils.data.Dataset):
         self.transforms = transforms
         # load all image files, sorting them to
         # ensure that they are aligned
-        self.imgs = list(sorted(os.listdir(os.path.join(root, "PNGImages"))))
-        self.jsons = list(sorted(os.listdir(os.path.join(root, "jsons"))))
+        self.imgs = list(sorted(os.listdir(os.path.join(root, "PNGimages"))))
+        self.jsons = list(sorted(os.listdir(os.path.join(root, "JSONfiles"))))
 
     def __getitem__(self, idx):
         # load images and masks
-        img_path = os.path.join(self.root, "PNGImages", self.imgs[idx])
-        json_path = os.path.join(self.root, "PedMasks", self.masks[idx])
+        img_path = os.path.join(self.root, "PNGimages", self.imgs[idx])
+        json_path = os.path.join(self.root, "JSONfiles", self.masks[idx])
 
         img = Image.open(img_path).convert("RGB")
         boxes=get_boxes(json_path)
-        # note that we haven't converted the mask to RGB,
-        # because each color corresponds to a different instance
-        # with 0 being background
         
-        # get bounding box coordinates for each mask
+        
         num_objs = len(boxes)
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -337,7 +326,7 @@ class WorksiteDataset(torch.utils.data.Dataset):
         return len(self.imgs)
 
 #%%
-from engine import train_one_epoch, evaluate
+from engine.py import train_one_epoch, evaluate
 import utils
 
 
@@ -392,3 +381,6 @@ def main():
         evaluate(model, data_loader_test, device=device)
 
     print("That's it!")
+    return model
+
+mod=main()
