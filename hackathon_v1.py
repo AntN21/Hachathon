@@ -21,7 +21,8 @@ def get_boxes(json_file):
 
     for item in object_list:
         if item['classTitle'] == 'People':
-            box_list.append(item['points']['exterior'])
+
+            box_list.append(item['points']['exterior'][0]+item['points']['exterior'][1])
     return box_list
 
 # %%
@@ -271,17 +272,20 @@ class PennFudanDataset(torch.utils.data.Dataset):
         # load images and masks
         img_path = os.path.join(self.root, "PNGImages", self.imgs[idx])
         json_path = os.path.join(self.root, "PedMasks", self.masks[idx])
+
         img = Image.open(img_path).convert("RGB")
-
-
-        boxes = get_boxes(json_path)
-
-
+        boxes=get_boxes(json_path)
+        # note that we haven't converted the mask to RGB,
+        # because each color corresponds to a different instance
+        # with 0 being background
+        
+        # get bounding box coordinates for each mask
+        num_objs = len(boxes)
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         # there is only one class
-        #labels = torch.ones((num_objs,), dtype=torch.int64)
-        #masks = torch.as_tensor(masks, dtype=torch.uint8)
+        labels = torch.ones((num_objs,), dtype=torch.int64)
+        
 
         image_id = torch.tensor([idx])
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
@@ -290,6 +294,7 @@ class PennFudanDataset(torch.utils.data.Dataset):
 
         target = {}
         target["boxes"] = boxes
+        target["labels"] = labels
         target["image_id"] = image_id
         target["area"] = area
         target["iscrowd"] = iscrowd
