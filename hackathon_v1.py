@@ -215,6 +215,8 @@ def afficher_boxes_json(
     plt.yticks([])
     plt.show()
 
+
+# %%
 #def critere
 
 
@@ -231,7 +233,6 @@ def prop_people_detected(
         if pred_cls[i] == "person":
             boxes_person.append(boxes[i])
     
-    
     # On recupere la liste des personnes reelles
     df = pd.read_json(img_path+".json", orient='index')
     object_list = df.values[3][0]
@@ -241,7 +242,58 @@ def prop_people_detected(
         if item['classTitle'] == 'People':
             real_boxes_list.append(item['points']['exterior'])
             # real_boxes_list contient donc tous les rectangles voulus
+    print(real_boxes_list)
     
+
+
+# %%
+import numpy as np
+
+def stocker_pos_ppl(img_path):
+    df = pd.read_json(img_path+".json", orient='index')
+    object_list = df.values[3][0]
+    real_boxes_list = []
+    
+    for item in object_list:
+        if item['classTitle'] == 'People':
+            real_boxes_list.append(item['points']['exterior'])
+            # real_boxes_list contient donc tous les rectangles voulus
+            
+    print(real_boxes_list)
+    ppl_pos = []
+    for item in real_boxes_list:
+        ppl_pos.append( [ int( (item[0][0]+item[1][0])/2 ), item[0][1], item[1][1]-item[0][1] ] ) # x,y,height
+        # on stock un seul pixel modelisant la position d'un travailleur
+    return(ppl_pos)
+
+# %%
+
+def dist(x0,y0, x1, y1):
+    res = (x1-x0)**2 + (y1-y0)**2
+    return( np.sqrt( res ) )
+
+def gradient_person(x0,y0,h0, coeff_ray=2, height=720, width=1280):
+    lst_pxl = []
+    for y in range(height):
+        for x in range(width):
+            if coeff_ray*h0 - dist(x0,y0, x,y) >= 0 :
+                lst_pxl.append( ( coeff_ray*h0 - dist(x0,y0, x,y) )/coeff_ray*h0 )
+            else:
+                lst_pxl.append(0)
+    return(lst_pxl)
+    
+
+def gradient_people(img_path, height=720, width=1280 ):
+    lst_pxl_glob = [0 for i in range(height*width)]
+    lst_pxl_one = []
+    ppl_pos = stocker_pos_ppl(img_path)
+    for person in ppl_pos:
+        lst_pxl_one = gradient_person(person[0], person[1], person[2])
+        lst_pxl_glob = [x + y for x, y in zip(lst_pxl_glob, lst_pxl_one)]
+    return(lst_pxl_glob)
+        
+                
+
 
 
 # %% https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
