@@ -35,7 +35,7 @@ def get_transform(train):
         transforms.append(T.RandomHorizontalFlip(0.5))
     return T.Compose(transforms)
 
-def get_model_instance_segmentation(num_classes):
+def get_model(num_classes):
     # load an instance segmentation model pre-trained on COCO
     # models.detection.maskrcnn_resnet50_fpn(weights= )
     model = models.detection.fasterrcnn_resnet50_fpn(weights='DEFAULT')
@@ -93,8 +93,6 @@ class WorksiteDataset(torch.utils.data.Dataset):
 
         if self.transforms is not None:
             img, target = self.transforms(img,target)
-
-
         return img, target
 
     def __len__(self):
@@ -137,7 +135,7 @@ def main():
         collate_fn=utils.collate_fn)
 
     # get the model using our helper function
-    model = get_model_instance_segmentation(num_classes)
+    model = get_model(num_classes)
 
     # move model to the right device
     model.to(device)
@@ -163,8 +161,74 @@ def main():
         evaluate(model, data_loader_test, device=device)
 
     print("That's it!")
-    # return model
+    return model
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    model=main()
+#    torch.save(model.state_dict(), "C:/Users/ANT/Documents/Hackathon/Hachathon")
+
+#%%
+modell=get_model(2)
+modell.load_state_dict(torch.load("modell10.pth",map_location=torch.device('cpu')))
+modell.eval()
+
+def get_prediction(model,datas,idx, threshold):
+
+    img,target = datas[idx]  # Apply the transform to the image
+    pred = model([img])  # Pass the image to the model
+    NAMES=["background","person"]
+    pred_class = [
+        NAMES[i]
+        for i in list(pred[0]["labels"].numpy())
+    ]  # Get the Prediction Score
+    pred_boxes = [
+        [(int(i[0]), int(i[1])), (int(i[2]), int(i[3]))]
+        for i in list(pred[0]["boxes"].detach().numpy())
+    ]  # Bounding boxes
+    pred_score = list(pred[0]["scores"].detach().numpy())
+    pred_t = [pred_score.index(x) for x in pred_score if x > threshold][
+        -1
+    ]  # Get list of index with score greater than threshold.
+    pred_boxes = pred_boxes[: pred_t + 1]
+    pred_class = pred_class[: pred_t + 1]
+    return pred_boxes, pred_class
+
+
+def object_detection_api(
+        model,datas,idx, threshold=0.5, rect_th=3, text_size=3, text_th=3
+):
+    boxes, pred_cls = get_prediction(model,datas,idx, threshold)  # Get predictions
+    img = cv2.imread(WSdata.root + "/PNGimages/"+WSdata.imgs[idx])  # Read image with cv2
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
+    boxesjson=get_boxes(WSdata.root + "/JSONfiles/"+WSdata.jsons[idx])
+    for i in range(len(boxes)):
+        if pred_cls[i] == "person":
+            cv2.rectangle(
+                img, boxes[i][0], boxes[i][1], color=(255, 0, 0), thickness=rect_th
+            )  # Draw Rectangle with the coordinates
+    for i in range(len(boxesjson)):
+        cv2.rectangle(
+            img, (boxesjson[i][0],boxesjson[i][1]),(boxesjson[i][2],boxesjson[i][3]), color=(0, 255, 0), thickness=rect_th
+        )  # Draw Rectangle with the coordinates
+
+            #cv2.putText(
+            #    img,
+            #    pred_cls[i],
+            #    boxes[i][0],
+            #    cv2.FONT_HERSHEY_SIMPLEX,
+            #    text_size,
+            #    (0, 255, 0),
+            #    thickness=text_th,
+            #)  # Write the prediction class
+    plt.figure(figsize=(20, 30))  # display the output image
+    plt.imshow(img)
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+WSdata=WorksiteDataset("Detection_Test_Set",get_transform(train=False))
+#print(WSdata.root + "/PNGimages/"+WSdata.imgs[0])
+#get_prediction(modell,WSdata,0,0.5)
+
+object_detection_api(modell,WSdata,60)
