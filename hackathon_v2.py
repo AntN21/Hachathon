@@ -35,6 +35,7 @@ def get_transform(train):
         transforms.append(T.RandomHorizontalFlip(0.5))
     return T.Compose(transforms)
 
+#Create a model from fasterrcnn_resnet50_fpn with a chosen number of outputs
 def get_model(num_classes):
     # load an instance segmentation model pre-trained on COCO
     # models.detection.maskrcnn_resnet50_fpn(weights= )
@@ -49,7 +50,7 @@ def get_model(num_classes):
 
 
 
-# %% Definition of the dataset ,marche pas pour l'instant
+# %% Definition of the dataset
 
 class WorksiteDataset(torch.utils.data.Dataset):
     def __init__(self, root, transforms):
@@ -166,18 +167,23 @@ def main():
 
 #if __name__ == "__main__":
 #    model=main()
-#    torch.save(model.state_dict(), "C:/Users/ANT/Documents/Hackathon/Hachathon")
+#    torch.save(model.state_dict(), "modell10.pth")
 
 #%%
 modell=get_model(2)
 modell.load_state_dict(torch.load("modell10.pth",map_location=torch.device('cpu')))
 modell.eval()
 
+def get_paths(dataset,idx):
+    img_path= dataset.root + "/PNGimages/"+dataset.imgs[idx]
+    json_path = dataset.root + "/JSONfiles/" + dataset.jsons[idx]
+    return img_path,json_path
 def get_prediction(model,datas,idx, threshold):
 
     img,target = datas[idx]  # Apply the transform to the image
     pred = model([img])  # Pass the image to the model
     NAMES=["background","person"]
+
     pred_class = [
         NAMES[i]
         for i in list(pred[0]["labels"].numpy())
@@ -194,14 +200,16 @@ def get_prediction(model,datas,idx, threshold):
     pred_class = pred_class[: pred_t + 1]
     return pred_boxes, pred_class
 
-
+#Takes a model, a dataset and an id, shows the picture corresponding to the id in the dataset
+# with the boxes guessed by the model in red, and the boxes from the json file in green
 def object_detection_api(
-        model,datas,idx, threshold=0.5, rect_th=3, text_size=3, text_th=3
+        model,dataset,idx, threshold=0.5, rect_th=3, text_size=3, text_th=3
 ):
-    boxes, pred_cls = get_prediction(model,datas,idx, threshold)  # Get predictions
-    img = cv2.imread(WSdata.root + "/PNGimages/"+WSdata.imgs[idx])  # Read image with cv2
+    img_path,json_path=get_paths(dataset,idx)
+    boxes, pred_cls = get_prediction(model,dataset,idx, threshold)  # Get predictions
+    img = cv2.imread(img_path)  # Read image with cv2
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
-    boxesjson=get_boxes(WSdata.root + "/JSONfiles/"+WSdata.jsons[idx])
+    boxesjson=get_boxes(json_path)
     for i in range(len(boxes)):
         if pred_cls[i] == "person":
             cv2.rectangle(
@@ -209,26 +217,16 @@ def object_detection_api(
             )  # Draw Rectangle with the coordinates
     for i in range(len(boxesjson)):
         cv2.rectangle(
-            img, (boxesjson[i][0],boxesjson[i][1]),(boxesjson[i][2],boxesjson[i][3]), color=(0, 255, 0), thickness=rect_th
+            img, (boxesjson[i][0],boxesjson[i][1]),(boxesjson[i][2],boxesjson[i][3]), color=(0, 255, 0), thickness=2
         )  # Draw Rectangle with the coordinates
 
-            #cv2.putText(
-            #    img,
-            #    pred_cls[i],
-            #    boxes[i][0],
-            #    cv2.FONT_HERSHEY_SIMPLEX,
-            #    text_size,
-            #    (0, 255, 0),
-            #    thickness=text_th,
-            #)  # Write the prediction class
     plt.figure(figsize=(20, 30))  # display the output image
     plt.imshow(img)
     plt.xticks([])
     plt.yticks([])
     plt.show()
 
-WSdata=WorksiteDataset("Detection_Test_Set",get_transform(train=False))
-#print(WSdata.root + "/PNGimages/"+WSdata.imgs[0])
-#get_prediction(modell,WSdata,0,0.5)
+WSdataTrain=WorksiteDataset("Detection_Train_Set",get_transform(train=False))
+WSdataTest=WorksiteDataset("Detection_Test_Set",get_transform(train=False))
 
-object_detection_api(modell,WSdata,60)
+object_detection_api(modell,WSdataTrain,0)
