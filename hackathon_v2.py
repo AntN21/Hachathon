@@ -101,15 +101,11 @@ class WorksiteDataset(torch.utils.data.Dataset):
 
 
 # %%
-import sys
-import os
-
-sys.path.append(os.path.abspath("C:/Users/olv_2/Documents/Hackathon/Hachathon/Utils"))
 
 from engine import train_one_epoch, evaluate
 import utils
 
-
+#returns a tune refined model from fasterrcnn_resnet50_fpn
 def main():
     print("main")
     # train on the GPU or on the CPU, if a GPU is not available
@@ -120,7 +116,6 @@ def main():
     # use our dataset and defined transformations
     dataset = WorksiteDataset('Detection_Train_Set', get_transform(train=True))
     dataset_test = WorksiteDataset('Detection_Train_Set', get_transform(train=False))
-    print(dataset_test[0])
     # split the dataset in train and test set
     indices = torch.randperm(len(dataset)).tolist()
     dataset = torch.utils.data.Subset(dataset, indices[:-50])
@@ -164,12 +159,13 @@ def main():
     print("That's it!")
     return model
 
-
+#To execute to train the model
 #if __name__ == "__main__":
 #    model=main()
 #    torch.save(model.state_dict(), "modell10.pth")
 
 #%%
+#modell10.pth has been trained 10 epochs on the dataset
 modell=get_model(2)
 modell.load_state_dict(torch.load("modell10.pth",map_location=torch.device('cpu')))
 modell.eval()
@@ -229,4 +225,4 @@ def object_detection_api(
 WSdataTrain=WorksiteDataset("Detection_Train_Set",get_transform(train=False))
 WSdataTest=WorksiteDataset("Detection_Test_Set",get_transform(train=False))
 
-object_detection_api(modell,WSdataTrain,0)
+#object_detection_api(modell,WSdataTest,3)
